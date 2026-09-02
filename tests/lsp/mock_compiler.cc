@@ -23,6 +23,12 @@
 #include "../../src/compiler/package.h"
 
 #ifdef TOIT_WINDOWS
+#include <io.h>
+#include <process.h>
+#define access _access
+#define getpid _getpid
+#define F_OK 0
+
 // https://stackoverflow.com/a/47229318
 // /* The original code is public domain -- Will Hartung 4/9/09 */
 // /* Modifications, public domain as well, by Antti Haapala, 11/10/17
@@ -96,6 +102,40 @@ using namespace toit;
 
 static bool starts_with(const uint8* str, const char* prefix) {
   return strncmp(char_cast(str), prefix, strlen(prefix)) == 0;
+}
+
+static const uint8* skip_line(const uint8* text) {
+  while (*text != '\n') text++;
+  return text + 1;
+}
+
+// Returns a malloced copy of the line at 'text' (without the '\n').
+static char* extract_line(const uint8* text) {
+  const uint8* end = text;
+  while (*end != '\n') end++;
+  int len = end - text;
+  char* result = unvoid_cast<char*>(malloc(len + 1));
+  memcpy(result, text, len);
+  result[len] = '\0';
+  return result;
+}
+
+// Rendezvous with the test: create a file that tells the test that we are
+// running, and then wait for the file with which the test releases us again.
+static void wait_for_test(const char* sync_dir) {
+  auto id = std::to_string(getpid());
+  auto running_path = std::string(sync_dir) + "/running-" + id;
+  auto go_path = std::string(sync_dir) + "/go-" + id;
+  auto go_all_path = std::string(sync_dir) + "/go-all";
+  FILE* running = fopen(running_path.c_str(), "w");
+  if (running == null) FATAL("Couldn't create %s", running_path.c_str());
+  fclose(running);
+  while (access(go_path.c_str(), F_OK) != 0 &&
+         access(go_all_path.c_str(), F_OK) != 0) {
+    // Don't wait forever if the test is gone.
+    if (access(sync_dir, F_OK) != 0) break;
+    usleep(1000);
+  }
 }
 
 char* read_line() {
@@ -189,6 +229,14 @@ int main(int argc, char** argv) {
 
   bool should_crash = false;
   bool should_timeout = false;
+  // The rendezvous happens before any output is produced, and thus before the
+  // other directives are handled.
+  if (starts_with(text, "SYNC\n")) {
+    text += strlen("SYNC\n");
+    char* sync_dir = extract_line(text);
+    text = skip_line(text);
+    wait_for_test(sync_dir);
+  }
   if (starts_with(text, "CRASH\n")) {
     should_crash = true;
     text += strlen("CRASH\n");
@@ -201,8 +249,7 @@ int main(int argc, char** argv) {
     text += strlen("SLOW\n");
     int amount = atoi(char_cast(text));
     fprintf(stderr, "Simulating slow compiler %d\n", amount);
-    while (*text != '\n') text++;
-    text++; // Skip over the '\n'.
+    text = skip_line(text);
     usleep(amount);
   }
 
