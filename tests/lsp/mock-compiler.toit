@@ -3,6 +3,8 @@
 // be found in the tests/LICENSE file.
 
 import .lsp-client
+import host.directory
+import host.file
 
 class MockDiagnostic:
   path / string ::= ?
@@ -56,14 +58,25 @@ class MockCompiler:
   set-mock-data --path/string data/MockData:
     mock-information_[path] = data
 
-  set-analysis-result answer/string -> none:
-    set-mock-file-content ANALYZE-MOCK-FILE answer
+  /**
+  Sets the answer the mock compiler gives for analysis requests.
 
-  set-dump-file-names-result answer/string -> none:
-    set-mock-file-content DUMP-FILE-NAMES-MOCK-FILE answer
+  If a $sync is given, the compiler blocks at that rendezvous point before
+    producing the answer. See $MockSync.
+  */
+  set-analysis-result answer/string --sync/MockSync?=null -> none:
+    set-mock-file-content ANALYZE-MOCK-FILE (with-sync_ answer --sync=sync)
 
-  set-completion-result answer/string -> none:
-    set-mock-file-content COMPLETE-FILE answer
+  set-dump-file-names-result answer/string --sync/MockSync?=null -> none:
+    set-mock-file-content DUMP-FILE-NAMES-MOCK-FILE (with-sync_ answer --sync=sync)
+
+  /// Variant of $set-analysis-result for completion requests.
+  set-completion-result answer/string --sync/MockSync?=null -> none:
+    set-mock-file-content COMPLETE-FILE (with-sync_ answer --sync=sync)
+
+  with-sync_ answer/string --sync/MockSync? -> string:
+    if not sync: return answer
+    return "SYNC\n$sync.dir\n" + answer
 
   set-mock-file-content uri text:
     if opened-mock-files_.contains uri:
@@ -134,3 +147,73 @@ class MockCompiler:
     chunks.add-all
         data.diagnostics.map: it.to-compiler-format
     data.deps.do: build-diagnostics_ it --seen=seen --chunks=chunks
+
+
+/**
+A rendezvous point for mock compilers.
+
+Answers that were set with a `--sync` argument (see $MockCompiler.set-analysis-result)
+  make the mock compiler announce itself in $dir and wait there, before it
+  produces any output. Tests can thus see which compilers are running, and
+  decide when they may finish, without relying on timing.
+
+A compiler counts as "waiting" from the moment it announces itself until the
+  test releases it. Since the release is driven by the test, the counts don't
+  change behind the test's back.
+*/
+class MockSync:
+  /// The directory through which the mock compilers are synchronized.
+  dir /string ::= directory.mkdtemp "/tmp/mock-sync-"
+
+  released_ /Set ::= {}
+
+  /// The ids of the compilers that have started so far.
+  started -> List:
+    result := []
+    stream := directory.DirectoryStream dir
+    try:
+      while name := stream.next:
+        if name.starts-with "running-": result.add name[(name.index-of "-") + 1..]
+    finally:
+      stream.close
+    return result
+
+  /// The ids of the compilers that are waiting to be released.
+  waiting -> List:
+    return started.filter: not released_.contains it
+
+  /**
+  Blocks until at least $count compilers are waiting.
+
+  Returns the waiting compilers.
+  */
+  wait-for-waiting count/int -> List:
+    while true:
+      result := waiting
+      if result.size >= count: return result
+      sleep --ms=1
+
+  /// Lets the compiler with the given $id finish.
+  release id/string -> none:
+    released_.add id
+    file.write-contents "" --path="$dir/go-$id"
+
+  /// Lets all compilers finish, including the ones that start later.
+  release-all -> none:
+    file.write-contents "" --path="$dir/go-all"
+
+  /// Releases all compilers and removes the $dir.
+  close -> none:
+    release-all
+    // A compiler that hasn't seen the "go-all" file yet stops waiting when the
+    // directory is gone.
+    directory.rmdir --recursive dir
+
+
+/// Calls the given $block with a $MockSync, and closes it afterwards.
+with-mock-sync [block] -> none:
+  sync := MockSync
+  try:
+    block.call sync
+  finally:
+    sync.close
