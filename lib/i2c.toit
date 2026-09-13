@@ -63,6 +63,12 @@ CONTROLLER-RESULT-OK_ ::= 0
 CONTROLLER-RESULT-NACK_ ::= 1
 CONTROLLER-RESULT-TIMEOUT_ ::= 2
 
+validate-target-address_ address/int address-bit-size/int broadcast/bool -> none:
+  if address-bit-size != 7 and address-bit-size != 10: throw "INVALID_ARGUMENT"
+  limit := (1 << address-bit-size) - 1
+  if not 0 <= address <= limit: throw "INVALID_ARGUMENT"
+  if broadcast and address-bit-size == 10: throw "INVALID_ARGUMENT"
+
 /**
 An addressable I2C target.
 
@@ -117,10 +123,7 @@ class Target:
       --default-response/ByteArray?=null
       --pull-up/bool=false
       --broadcast/bool=false:
-    if address-bit-size != 7 and address-bit-size != 10: throw "INVALID_ARGUMENT"
-    limit := (1 << address-bit-size) - 1
-    if not 0 <= address <= limit: throw "INVALID_ARGUMENT"
-    if broadcast and address-bit-size == 10: throw "INVALID_ARGUMENT"
+    validate-target-address_ address address-bit-size broadcast
     if send-buffer-size <= 0 or receive-buffer-size <= 0: throw "INVALID_ARGUMENT"
     response := default-response or ByteArray MAX-DEFAULT-RESPONSE-SIZE --initial=0xff
     if response.size == 0 or response.size > MAX-DEFAULT-RESPONSE-SIZE:
@@ -348,10 +351,7 @@ class RegisterTarget:
       --receive-buffer-size/int=DEFAULT-TARGET-BUFFER-SIZE
       --pull-up/bool=false
       --broadcast/bool=false:
-    if address-bit-size != 7 and address-bit-size != 10: throw "INVALID_ARGUMENT"
-    address-limit := (1 << address-bit-size) - 1
-    if not 0 <= address <= address-limit: throw "INVALID_ARGUMENT"
-    if broadcast and address-bit-size == 10: throw "INVALID_ARGUMENT"
+    validate-target-address_ address address-bit-size broadcast
     if register-address-byte-size != 1 and register-address-byte-size != 2: throw "INVALID_ARGUMENT"
     register-limit := 1 << (register-address-byte-size * 8)
     if not 0 < register-count <= register-limit: throw "INVALID_ARGUMENT"
@@ -563,9 +563,18 @@ class Bus:
   test address --timeout-ms/int=100 -> bool:
     if not 0 <= address <= 0x7f: throw "INVALID_ARGUMENT"
     if timeout-ms <= 0: throw "INVALID_ARGUMENT"
-    return perform-controller-operation_
-        (: i2c-bus-probe_ resource_ address timeout-ms)
-        (: i2c-bus-probe-finish_ resource_)
+    result := false
+    error := catch --unwind=(: it != DEADLINE-EXCEEDED-ERROR):
+      result = with-timeout --ms=timeout-ms:
+        perform-controller-operation_
+            (: i2c-bus-probe_ resource_ address timeout-ms)
+            (: i2c-bus-probe-finish_ resource_)
+    if error:
+      // An earlier caller deadline is automatically rethrown by 'catch'. A
+      // deadline caught here was installed for this probe and is equivalent
+      // to the driver's hardware timeout.
+      return false
+    return result
 
   /**
   Closes this I2C bus.
