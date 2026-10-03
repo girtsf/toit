@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include <functional>
+#include <vector>
 
 #include "../../top.h"
 
@@ -33,7 +33,7 @@ class LspFsConnectionSocket : public LspFsConnection {
 
   void initialize(Diagnostics* diagnostics);
   void putline(const char*);
-  char* getline();
+  std::string getline();
   int read_data(uint8* content, int size);
 
  private:
@@ -41,6 +41,8 @@ class LspFsConnectionSocket : public LspFsConnection {
 
   bool is_initialized_ = false;
   int64 socket_ = -1;
+  // Bytes received but not yet consumed by getline or read_data.
+  std::vector<uint8> buffered_;
 };
 
 } // namespace toit::compiler

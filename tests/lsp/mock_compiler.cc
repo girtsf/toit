@@ -199,9 +199,7 @@ int main(int argc, char** argv) {
   // requests as with a real compiler. The content is irrelevant.
   manager.load_file(path, Package::invalid());
 
-  char* size_line = control.getline();
-  int size = atoi(size_line);
-  free(size_line);
+  int size = atoi(control.getline().c_str());
   uint8* answer = unvoid_cast<uint8*>(malloc(size + 1));
   if (control.read_data(answer, size) != 0) FATAL("Couldn't read answer");
   answer[size] = '\0';

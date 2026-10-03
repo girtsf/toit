@@ -20,11 +20,11 @@ class MemoryConnection : public compiler::LspFsConnection {
  public:
   void initialize(compiler::Diagnostics* diagnostics) {}
   void putline(const char* line) {}
-  char* getline() {
+  std::string getline() {
     const char* lines[] = {"/sdk", "2", "/cache/one", "/cache/two",
                           "true", "true", "false", "6"};
     if (next_ == ARRAY_SIZE(lines)) FATAL("Unexpected filesystem request");
-    return strdup(lines[next_++]);
+    return lines[next_++];
   }
   int read_data(uint8* content, int size) {
     if (size != 6 || reads_++ != 0) FATAL("Unexpected content request");

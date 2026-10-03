@@ -17,7 +17,11 @@
 
 #include <stdio.h>
 
+#include <algorithm>
+
 #ifdef TOIT_POSIX
+#include <errno.h>
+#include <string.h>
 #include <sys/socket.h>
 #endif
 #ifdef TOIT_WINDOWS
@@ -30,51 +34,77 @@
 namespace toit {
 namespace compiler {
 
-char* get_executable_path();
+// Report a closed peer as a send error instead of dying from SIGPIPE.
+// macOS has no MSG_NOSIGNAL and sets SO_NOSIGPIPE on the socket instead.
+#ifdef MSG_NOSIGNAL
+static const int SEND_FLAGS = MSG_NOSIGNAL;
+#else
+static const int SEND_FLAGS = 0;
+#endif
+
+static const char* last_socket_error() {
+#ifdef TOIT_WINDOWS
+  static char buffer[32];
+  snprintf(buffer, sizeof(buffer), "error %d", WSAGetLastError());
+  return buffer;
+#else
+  return strerror(errno);
+#endif
+}
 
 void LspFsConnectionSocket::putline(const char* line) {
-  int len = strlen(line);
-  int offset = 0;
-  while (offset < len) {
-    int n = send(socket_, line + offset, len - offset, 0);
-    if (n == -1) {
-      FATAL("failed writing line");
+  std::string data(line);
+  data += '\n';
+  size_t offset = 0;
+  while (offset < data.size()) {
+    int n = send(socket_, data.data() + offset, data.size() - offset, SEND_FLAGS);
+    if (n < 0) {
+#ifdef TOIT_POSIX
+      // Without MSG_NOSIGNAL, SIGPIPE ended the process quietly. Keep it that
+      // way instead of dumping core, like a killed parent in
+      // send_pipeline_result.
+      if (errno == EPIPE) {
+        fprintf(stderr, "Language server closed the connection, exiting\n");
+        exit(EXIT_FAILURE);
+      }
+#endif
+      FATAL("failed writing line: %s", last_socket_error());
     }
     offset += n;
   }
-
-  const char nl = '\n';
-  if (send(socket_, &nl, 1, 0) != 1) {
-    FATAL("failed writing newline");
-  }
 }
 
-char* LspFsConnectionSocket::getline() {
-  // TODO(anders): This is not that cool. Find a better way to buffer.
-  char buffer[64 * 1024];
-
-  size_t offset = 0;
-  while (offset < sizeof(buffer)) {
-    int n = recv(socket_, buffer + offset, 1, 0);
-    if (n != 1) {
-      FATAL("failed reading line");
-    }
-    if (buffer[offset] == '\n') {
-      char* result = unvoid_cast<char*>(malloc(offset + 1));
-      memcpy(result, buffer, offset);
-      result[offset] = 0;
+std::string LspFsConnectionSocket::getline() {
+  size_t searched = 0;
+  while (true) {
+    auto newline = std::find(buffered_.begin() + searched, buffered_.end(), '\n');
+    if (newline != buffered_.end()) {
+      std::string result(buffered_.begin(), newline);
+      buffered_.erase(buffered_.begin(), newline + 1);
       return result;
     }
-    offset++;
+    searched = buffered_.size();
+    uint8 chunk[4096];
+    int n = recv(socket_, char_cast(chunk), sizeof(chunk), 0);
+    if (n == 0) {
+      FATAL("failed reading line: peer closed the connection");
+    }
+    if (n < 0) {
+      FATAL("failed reading line: %s", last_socket_error());
+    }
+    buffered_.insert(buffered_.end(), chunk, chunk + n);
   }
-  FATAL("line too large\n");
 }
 
 int LspFsConnectionSocket::read_data(uint8* content, int size) {
-  int offset = 0;
+  // Use what getline read ahead first, then read the rest directly.
+  int offset = std::min(static_cast<int>(buffered_.size()), size);
+  memcpy(content, buffered_.data(), offset);
+  buffered_.erase(buffered_.begin(), buffered_.begin() + offset);
   while (offset < size) {
     int n = recv(socket_, char_cast(content) + offset, size - offset, 0);
-    if (n == -1) return -1;
+    // 0 means the peer closed the connection before sending everything.
+    if (n <= 0) return -1;
     offset += n;
   }
   return 0;

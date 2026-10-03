@@ -58,6 +58,9 @@ void LspFsConnectionSocket::initialize(Diagnostics* diagnostics) {
     if (socket_fd == -1) continue;
     int one = 1;
     setsockopt(socket_fd, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one));
+#ifdef SO_NOSIGPIPE
+    setsockopt(socket_fd, SOL_SOCKET, SO_NOSIGPIPE, &one, sizeof(one));
+#endif
     if (connect(socket_fd, info->ai_addr, info->ai_addrlen) != -1) {
       socket_ = socket_fd;
       break;

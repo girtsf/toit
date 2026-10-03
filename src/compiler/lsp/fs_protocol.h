@@ -16,6 +16,7 @@
 #pragma once
 
 #include <functional>
+#include <string>
 
 #include "../../top.h"
 
@@ -30,8 +31,8 @@ struct LspFsConnection {
   virtual ~LspFsConnection() {}
   virtual void initialize(Diagnostics* diagnostics) = 0;
   virtual void putline(const char* line) = 0;
-  // Caller owns the returned malloc buffer.
-  virtual char* getline() = 0;
+  // Returns the next line without its '\n'.
+  virtual std::string getline() = 0;
   virtual int read_data(uint8* content, int size) = 0;
 };
 

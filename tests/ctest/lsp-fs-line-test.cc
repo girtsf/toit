@@ -34,9 +34,8 @@ static void check_line(const char* input, int size, const char* expected) {
     close(errors[1]);
     fclose(file);
     compiler::LspFsConnectionMultiplexStdout connection;
-    char* line = connection.getline();
-    bool matches = expected != null && strcmp(line, expected) == 0;
-    free(line);
+    std::string line = connection.getline();
+    bool matches = expected != null && line == expected;
     _exit(matches ? 0 : 2);
   }
   fclose(file);

@@ -60,7 +60,7 @@ void LspFsConnectionMultiplexStdout::putline(const char* line) {
   fflush(stdout);
 }
 
-char* LspFsConnectionMultiplexStdout::getline() {
+std::string LspFsConnectionMultiplexStdout::getline() {
   // TODO(florian): we should never need that much.
   const int MAX_LINE_SIZE = 64 * 1024;
   char buffer[MAX_LINE_SIZE];
@@ -75,11 +75,7 @@ char* LspFsConnectionMultiplexStdout::getline() {
   int len = strlen(buffer);
   if (len == 0 || buffer[len - 1] != '\n') FATAL("Invalid filesystem response line");
   // Drop the '\n'.
-  char* result = unvoid_cast<char*>(malloc(len));
-  if (result == null) FATAL("Couldn't allocate filesystem response line");
-  memcpy(result, buffer, len - 1);
-  result[len - 1] = '\0';
-  return result;
+  return std::string(buffer, len - 1);
 }
 
 int LspFsConnectionMultiplexStdout::read_data(uint8* content, int size) {

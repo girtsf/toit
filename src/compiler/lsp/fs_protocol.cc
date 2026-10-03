@@ -20,21 +20,18 @@ namespace compiler {
 
 const char* LspFsProtocol::sdk_path() {
   connection_->putline("SDK PATH");
-  return Zone::current()->own_malloc(connection_->getline());
+  return Zone::current()->strdup(connection_->getline().c_str());
 }
 
 List<const char*> LspFsProtocol::package_cache_paths() {
   connection_->putline("PACKAGE CACHE PATHS");
 
-  char* count_str = connection_->getline();
-  int count = atoi(count_str);
-  free(count_str);
+  int count = atoi(connection_->getline().c_str());
 
   auto result = ListBuilder<const char*>::allocate(count);
 
   for (int i = 0; i < count; i++) {
-    char* line = connection_->getline();
-    result[i] = Zone::current()->own_malloc(line);
+    result[i] = Zone::current()->strdup(connection_->getline().c_str());
   }
   return result;
 }
@@ -44,40 +41,26 @@ void LspFsProtocol::list_directory_entries(const char* path,
   connection_->putline("LIST DIRECTORY");
   connection_->putline(path);
 
-  char* count_str = connection_->getline();
-  int count = atoi(count_str);
-  free(count_str);
+  int count = atoi(connection_->getline().c_str());
 
   bool should_call_callback = true;
   for (int i = 0; i < count; i++) {
-    char* line = connection_->getline();
+    std::string line = connection_->getline();
     if (should_call_callback) {
       // Even if the callback doesn't want to be called anymore, we still need to
       // read the remaining lines.
-      should_call_callback = callback(line);
+      should_call_callback = callback(line.c_str());
     }
-    free(line);
   }
 }
 
 LspFsProtocol::PathInfo LspFsProtocol::fetch_info_for(const char* path) {
   connection_->putline("INFO");
   connection_->putline(path);
-  char* exists_str = connection_->getline();
-  bool exists = strcmp(exists_str, "true") == 0;
-  free(exists_str);
-
-  char* is_regular_str = connection_->getline();
-  bool is_regular = strcmp(is_regular_str, "true") == 0;
-  free(is_regular_str);
-
-  char* is_directory_str = connection_->getline();
-  bool is_directory = strcmp(is_directory_str, "true") == 0;
-  free(is_directory_str);
-
-  char* content_size_str = connection_->getline();
-  int size = atoi(content_size_str);
-  free(content_size_str);
+  bool exists = connection_->getline() == "true";
+  bool is_regular = connection_->getline() == "true";
+  bool is_directory = connection_->getline() == "true";
+  int size = atoi(connection_->getline().c_str());
   uint8* content = null;
   if (size >= 0) {
     content = unvoid_cast<uint8*>(malloc(size + 1));
