@@ -4,12 +4,21 @@ name: GF release
 # <latest upstream tag>-gf.<run number>, e.g. v2.0.0-alpha.199-gf.3. Run on the
 # gf branch:
 #
-#   gh workflow run gf-release.yml -R girtsf/toit --ref gf
+#   gh workflow run gf-release.yml -R girtsf/toit --ref gf [-f downstream=false]
+#
+# Afterwards it starts the envelopes build and the jag_gf release for the new
+# SDK. That needs the GF_DISPATCH_TOKEN secret: a fine-grained token with
+# Actions read/write on girtsf/toit-envelopes and girtsf/jaguar.
 #
 # The upstream workflows should be disabled in the fork.
 
 on:
   workflow_dispatch:
+    inputs:
+      downstream:
+        description: Start the envelopes build and the jag_gf release
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -59,3 +68,14 @@ jobs:
           } > build/notes.md
           gh release create "$TOIT_GIT_VERSION" build/toit-linux-x64.tar.gz \
               --target "$GITHUB_SHA" --title "$TOIT_GIT_VERSION" --notes-file build/notes.md
+
+      - name: Start downstream builds
+        if: inputs.downstream
+        env:
+          GH_TOKEN: ${{ secrets.GF_DISPATCH_TOKEN }}
+        run: |
+          gh workflow run build.yml -R girtsf/toit-envelopes --ref gf \
+              -f toit-version="$TOIT_GIT_VERSION" -f upload-release=true \
+              -f build-host=false -f build-cross=false
+          gh workflow run gf-release.yml -R girtsf/jaguar --ref gf \
+              -f sdk-version="$TOIT_GIT_VERSION"
