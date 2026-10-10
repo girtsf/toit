@@ -20,6 +20,10 @@ on:
         type: boolean
         default: true
 
+env:
+  # Envelope variants built by the girtsf/toit-envelopes fork.
+  GF_VARIANTS: esp32-no-ble esp32s3 esp32s3-spiram-octo-16mb
+
 permissions:
   contents: write
 
@@ -76,6 +80,6 @@ jobs:
         run: |
           gh workflow run build.yml -R girtsf/toit-envelopes --ref gf \
               -f toit-version="$TOIT_GIT_VERSION" -f upload-release=true \
-              -f build-host=false -f build-cross=false
+              -f build-host=false -f build-cross=false -f variant="$GF_VARIANTS"
           gh workflow run gf-release.yml -R girtsf/jaguar --ref gf \
               -f sdk-version="$TOIT_GIT_VERSION"
