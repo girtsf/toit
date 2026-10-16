@@ -1360,9 +1360,14 @@ void MethodResolver::_resolve_parameters(
     // Resolve the types of `// __TYPE-MIGRATION__` annotations.
     auto ast_migration_types = parameter->migration_types();
     if (!ast_migration_types.is_empty()) {
-      if (has_explicit_type && !type.is_any()) {
+      // The migration types are only checked statically. On a block parameter
+      // the declared type is what's checked at runtime, so its return type
+      // must leave room for the migration types.
+      bool is_block_returning_any = type.is_block() && type.block_return_type().is_any();
+      if (has_explicit_type && !type.is_any() && !is_block_returning_any) {
         report_error(parameter,
-                     "Type-migration annotations are only allowed on 'any' parameters");
+                     "Type-migration annotations are only allowed on 'any' parameters, "
+                     "or block parameters returning 'any'");
       } else {
         auto migration_types =
             ListBuilder<ir::Parameter::MigrationType>::allocate(ast_migration_types.length());

@@ -13,7 +13,7 @@ tests/negative/type-migration-test.toit:54:30: error: Unexpected text in type-mi
 tests/negative/type-migration-test.toit:57:23: error: No parameter 'y' for type-migration annotation
 // __TYPE-MIGRATION__ y: int
                       ^
-tests/negative/type-migration-test.toit:66:23: error: Can't use a type-migration annotation on a block parameter
+tests/negative/type-migration-test.toit:66:23: error: Type-migration annotation for a block parameter must be a block type
 // __TYPE-MIGRATION__ b: int
                       ^
 tests/negative/type-migration-test.toit:69:1: error: Type-migration annotation isn't attached to a method declaration
@@ -22,7 +22,7 @@ tests/negative/type-migration-test.toit:69:1: error: Type-migration annotation i
 tests/negative/type-migration-test.toit:60:26: error: Unresolved type: 'NotAType'
 // __TYPE-MIGRATION__ x: NotAType
                          ^~~~~~~~
-tests/negative/type-migration-test.toit:64:22: error: Type-migration annotations are only allowed on 'any' parameters
+tests/negative/type-migration-test.toit:64:22: error: Type-migration annotations are only allowed on 'any' parameters, or block parameters returning 'any'
 not-an-any-parameter x/string:
                      ^
 tests/negative/type-migration-test.toit:78:20: warning: Deprecated type 'Pin' for parameter 'rx'. Provide an integer instead

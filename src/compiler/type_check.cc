@@ -958,7 +958,13 @@ class TypeChecker : public ReturningVisitor<Type> {
       check(range, parameter_type, value_type);
       return;
     }
-    ASSERT(parameter->type().is_any());
+    // On block parameters the declared type (what's checked at runtime) must
+    // hold as well. Don't report twice.
+    if (parameter->type().is_block() && !is_assignable(parameter_type, value_type)) {
+      check(range, parameter_type, value_type);
+      return;
+    }
+    ASSERT(parameter->type().is_any() || parameter->type().is_block());
     if (value_type.is_any()) return;
     if (value_type.is_none()) {
       report_error(range, "Can't use value that is typed 'none'");

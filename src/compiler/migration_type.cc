@@ -124,9 +124,11 @@ class MigrationTypeManager : public CommentsManager {
         diagnostics_->report_error(parsed.name_range,
                                    "No parameter '%s' for type-migration annotation",
                                    parsed.name.c_str());
-      } else if (target->is_block()) {
+      } else if (target->is_block() != parsed.migration_type->type()->is_BlockType()) {
         diagnostics_->report_error(parsed.name_range,
-                                   "Can't use a type-migration annotation on a block parameter");
+                                   target->is_block()
+                                       ? "Type-migration annotation for a block parameter must be a block type"
+                                       : "Block type-migration annotation on a non-block parameter");
       } else {
         per_parameter[target].add(parsed.migration_type);
       }
@@ -231,10 +233,62 @@ class MigrationTypeManager : public CommentsManager {
     return result;
   }
 
-  /// Parses a type: a (potentially prefixed) identifier with an optional '?'.
+  /// Parses a block type: `[block T1 T2 -> R]`. The word after the '[' is
+  /// ignored, like the parameter name in a signature.
+  /// Returns null (after reporting an error) if the type is malformed.
+  ast::Expression* parse_block_type(const uint8* text, int* pos_ptr, int to) {
+    int pos = *pos_ptr;
+    int start = pos;
+    ASSERT(text[pos] == '[');
+    pos = skip_spaces(text, pos + 1, to);
+    int name_start = pos;
+    pos = scan_identifier(text, pos, to);
+    if (pos == name_start) {
+      diagnostics_->report_error(source_->range(pos, pos), "Expected a name in block type");
+      return null;
+    }
+    ListBuilder<ast::Expression*> parameter_types;
+    ast::Expression* return_type = null;
+    while (true) {
+      pos = skip_spaces(text, pos, to);
+      if (pos >= to) {
+        diagnostics_->report_error(source_->range(pos, pos), "Missing ']' in block type");
+        return null;
+      }
+      if (text[pos] == ']') {
+        pos++;
+        break;
+      }
+      if (matches(text, pos, to, "->")) {
+        if (return_type != null) {
+          diagnostics_->report_error(source_->range(pos, pos + 2), "Duplicate return type in block type");
+          return null;
+        }
+        pos = skip_spaces(text, pos + 2, to);
+        return_type = parse_type(text, &pos, to);
+        if (return_type == null) return null;
+        continue;
+      }
+      if (return_type != null) {
+        diagnostics_->report_error(source_->range(pos, pos), "Expected ']' after the return type");
+        return null;
+      }
+      auto type = parse_type(text, &pos, to);
+      if (type == null) return null;
+      parameter_types.add(type);
+    }
+    auto result = zone_new<ast::BlockType>(parameter_types.build(), return_type);
+    result->set_range(source_->range(start, pos));
+    *pos_ptr = pos;
+    return result;
+  }
+
+  /// Parses a type: a (potentially prefixed) identifier with an optional '?',
+  /// or a block type.
   /// Returns null (after reporting an error) if the type is malformed.
   ast::Expression* parse_type(const uint8* text, int* pos_ptr, int to) {
     int pos = *pos_ptr;
+    if (pos < to && text[pos] == '[') return parse_block_type(text, pos_ptr, to);
     int start = pos;
     ast::Expression* result = null;
     while (true) {

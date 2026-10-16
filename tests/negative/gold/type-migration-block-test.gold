@@ -1,0 +1,40 @@
+tests/negative/type-migration-block-test.toit:31:44: error: Missing ']' in block type
+// __TYPE-MIGRATION__ p: [block any -> bool
+                                           ^
+tests/negative/type-migration-block-test.toit:34:45: error: Duplicate return type in block type
+// __TYPE-MIGRATION__ p: [block any -> bool -> int]
+                                            ^~
+tests/negative/type-migration-block-test.toit:37:27: error: Expected a name in block type
+// __TYPE-MIGRATION__ p: [-> bool]
+                          ^
+tests/negative/type-migration-block-test.toit:25:23: error: Type-migration annotation for a block parameter must be a block type
+// __TYPE-MIGRATION__ p: int
+                      ^
+tests/negative/type-migration-block-test.toit:28:23: error: Block type-migration annotation on a non-block parameter
+// __TYPE-MIGRATION__ p: [block any -> bool]
+                      ^
+tests/negative/type-migration-block-test.toit:23:15: error: Type-migration annotations are only allowed on 'any' parameters, or block parameters returning 'any'
+declared-bool [p any -> bool]: p.call 1
+              ^~
+tests/negative/type-migration-block-test.toit:47:12: error: Type mismatch. Expected '[block any -> bool]'. Got '[block -> int]'
+  every [1]: 42               // Error.
+           ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+tests/negative/type-migration-block-test.toit:48:12: error: Type mismatch. Expected '[block any -> bool]'. Got '[block -> null]'
+  every [1]: null             // Error.
+           ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+tests/negative/type-migration-block-test.toit:52:20: warning: Deprecated type '[block any -> any]' for parameter 'predicate'. Return a bool instead
+  lenient-every [1]: 42       // Warning.
+                   ^~~~~~~~~~~~~~~~~~~~~~
+tests/negative/type-migration-block-test.toit:53:20: warning: Deprecated type '[block any -> any]' for parameter 'predicate'. Return a bool instead
+  lenient-every [1]: null     // Warning.
+                   ^~~~~~~~~~~~~~~~~~~~~~
+tests/negative/type-migration-block-test.toit:54:20: error: Type mismatch. Expected '[block any -> any]'. Got '[block any any -> int]'
+  lenient-every [1]: |a b| 1  // Error: too many parameters.
+                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+tests/negative/type-migration-block-test.toit:56:9: warning: Deprecated type '[block int -> int]' for parameter 'b'. Return a string instead
+  legacy: it                  // Warning: deprecated.
+        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+tests/negative/type-migration-block-test.toit:57:9: error: Type mismatch. Expected '[block int -> int]' or '[block int -> string]'. Got '[block -> float]'
+  legacy: 1.5                 // Error.
+        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Compilation failed
