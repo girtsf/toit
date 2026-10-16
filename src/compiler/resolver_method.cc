@@ -344,6 +344,19 @@ ir::Type MethodResolver::resolve_type(ast::Expression* type, bool is_return_type
     return resolved.to_nullable();
   }
 
+  if (type->is_BlockType()) {
+    // TODO(girtsf): resolve and check block types. Until then LSP requests
+    //   (goto-definition, completion) inside block types yield nothing.
+    auto block_type = type->as_BlockType();
+    bool has_error = block_type->return_type() != null && block_type->return_type()->is_Error();
+    for (auto parameter_type : block_type->parameter_types()) {
+      if (parameter_type->is_Error()) has_error = true;
+    }
+    // Malformed block types were already reported by the parser.
+    if (!has_error) report_error(type, "Block types aren't supported yet");
+    return ir::Type::any();
+  }
+
   {
     // Start by checking that there isn't any `super` or `this` in the type.
     // Linearize the type, so we can check it from left to right.

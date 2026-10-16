@@ -1,0 +1,106 @@
+tests/negative/block-type-syntax-test.toit:14:19: error: Block types must be inside the brackets: '[name types -> type]'
+after-bracket [b] /int: null
+                  ^
+tests/negative/block-type-syntax-test.toit:15:31: error: Missing ']' for block parameter
+missing-bracket [b int -> bool: null
+                              ^
+tests/negative/block-type-syntax-test.toit:16:20: error: Unexpected token while parsing type
+double-arrow [b -> -> int]: null
+                   ^~
+tests/negative/block-type-syntax-test.toit:16:20: error: Missing ']' for block parameter
+double-arrow [b -> -> int]: null
+                   ^~
+tests/negative/block-type-syntax-test.toit:17:24: error: Unexpected token while parsing type
+empty-return [b int -> ]: null
+                       ^
+tests/negative/block-type-syntax-test.toit:18:11: error: Missing ']' for block parameter
+nested [b [c]]: null
+          ^
+tests/negative/block-type-syntax-test.toit:18:14: error: Unexpected token: ]
+nested [b [c]]: null
+             ^
+tests/negative/block-type-syntax-test.toit:19:24: error: Missing ']' for block parameter
+colon-after-type [b int: null
+                       ^
+tests/negative/block-type-syntax-test.toit:21:21: error: Block types don't name their parameters: '[name types -> type]'
+names-with-types [b x/int y/string -> bool]: null
+                    ^
+tests/negative/block-type-syntax-test.toit:21:27: error: Block types don't name their parameters: '[name types -> type]'
+names-with-types [b x/int y/string -> bool]: null
+                          ^
+tests/negative/block-type-syntax-test.toit:22:9: error: Block types don't use '/': '[name types -> type]'
+slash [b/int]: null
+        ^
+tests/negative/block-type-syntax-test.toit:23:15: error: Block types don't use '/': '[name types -> type]'
+slash-more [b /int string -> bool]: null
+              ^
+tests/negative/block-type-syntax-test.toit:25:17: error: Missing ']' for block parameter
+named-inside [b --baz]: null
+                ^~
+tests/negative/block-type-syntax-test.toit:26:25: error: Missing ']' for block parameter
+named-after-type [b int --baz]: null
+                        ^~
+tests/negative/block-type-syntax-test.toit:27:22: error: Missing ']' for block parameter
+named-before-type [b --baz int]: null
+                     ^~
+tests/negative/block-type-syntax-test.toit:28:22: error: Missing ']' for block parameter
+named-between [b int --baz -> bool]: null
+                     ^~
+tests/negative/block-type-syntax-test.toit:51:30: error: Unexpected token while parsing type
+unterminated-at-eof [b int ->
+                             ^
+tests/negative/block-type-syntax-test.toit:51:30: error: Missing ']' for block parameter
+unterminated-at-eof [b int ->
+                             ^
+tests/negative/block-type-syntax-test.toit:51:1: error: Missing body
+unterminated-at-eof [b int ->
+^~~~~~~~~~~~~~~~~~~
+tests/negative/block-type-syntax-test.toit:6:14: error: Block types aren't supported yet
+one-param [b int]: null
+             ^~~
+tests/negative/block-type-syntax-test.toit:7:15: error: Block types aren't supported yet
+two-params [b int string -> bool]: null
+              ^~~~~~~~~~~~~~~~~~
+tests/negative/block-type-syntax-test.toit:8:14: error: Block types aren't supported yet
+no-params [b -> int]: null
+             ^~~~~~
+tests/negative/block-type-syntax-test.toit:9:13: error: Block types aren't supported yet
+nullable [b int? -> bool?]: null
+            ^~~~~~~~~~~~~
+tests/negative/block-type-syntax-test.toit:10:13: error: Block types aren't supported yet
+prefixed [b core.List -> none]: null
+            ^~~~~~~~~~~~~~~~~
+tests/negative/block-type-syntax-test.toit:11:12: error: Block types aren't supported yet
+named [--b any -> any]: null
+           ^~~~~~~~~~
+tests/negative/block-type-syntax-test.toit:15:20: error: Block types aren't supported yet
+missing-bracket [b int -> bool: null
+                   ^~~~~~~~~~~
+tests/negative/block-type-syntax-test.toit:19:21: error: Block types aren't supported yet
+colon-after-type [b int: null
+                    ^~~
+tests/negative/block-type-syntax-test.toit:20:26: error: Block types aren't supported yet
+default-with-type [b = 5 int -> int]: null
+                         ^~~~~~~~~~
+tests/negative/block-type-syntax-test.toit:20:19: error: Block parameters may not have a default value
+default-with-type [b = 5 int -> int]: null
+                  ^~
+tests/negative/block-type-syntax-test.toit:21:21: error: Block types aren't supported yet
+names-with-types [b x/int y/string -> bool]: null
+                    ^~~~~~~~~~~~~~~~~~~~~~
+tests/negative/block-type-syntax-test.toit:22:10: error: Block types aren't supported yet
+slash [b/int]: null
+         ^~~
+tests/negative/block-type-syntax-test.toit:23:16: error: Block types aren't supported yet
+slash-more [b /int string -> bool]: null
+               ^~~~~~~~~~~~~~~~~~
+tests/negative/block-type-syntax-test.toit:24:15: error: Block types aren't supported yet
+names-only [b x y]: null
+              ^~~
+tests/negative/block-type-syntax-test.toit:26:21: error: Block types aren't supported yet
+named-after-type [b int --baz]: null
+                    ^~~
+tests/negative/block-type-syntax-test.toit:28:18: error: Block types aren't supported yet
+named-between [b int --baz -> bool]: null
+                 ^~~
+Compilation failed

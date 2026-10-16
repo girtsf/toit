@@ -541,6 +541,11 @@ class Parser {
   // view.
   bool peek_type(ParserPeeker* peeker);
   ast::Expression* parse_type(bool is_type_annotation);
+  // Parses a type without the leading '/' or '->'.
+  ast::Expression* parse_type_body(bool allow_nullable);
+  // Parses the types of a block parameter, after its name: `int string -> bool`.
+  // [first_type] is an already parsed first parameter type, or null.
+  ast::BlockType* parse_block_type(ast::Expression* first_type);
   ast::Class* parse_class_interface_monitor_or_mixin(bool is_abstract, Source::Range abstract_range);
 
   ast::Sequence* parse_sequence();
