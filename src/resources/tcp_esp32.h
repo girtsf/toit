@@ -104,6 +104,12 @@ class LwipSocket : public Resource, public BacklogSocketList::Element {
   int new_backlog_socket(tcp_pcb* tpcb);
   LwipSocket* accept();
 
+  // Debug view of the socket, for the sockets_info primitive.
+  int backlog_length() const;
+  bool in_backlog() const { return in_backlog_; }
+  pbuf* read_buffer() const { return read_buffer_; }
+  int read_offset() const { return read_offset_; }
+
  private:
   Kind kind_;
   tcp_pcb* tpcb_ = null;
@@ -119,6 +125,8 @@ class LwipSocket : public Resource, public BacklogSocketList::Element {
   // Sockets that are connected on a listening socket, but have not yet been
   // accepted by the application.
   BacklogSocketList backlog_;
+  // Whether this socket is in a listening socket's backlog.
+  bool in_backlog_ = false;
 };
 
 } // namespace toit

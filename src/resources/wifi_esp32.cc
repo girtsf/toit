@@ -17,6 +17,7 @@
 
 #ifdef TOIT_ESP32
 
+#include <esp_log.h>
 #include <esp_wifi.h>
 #include <nvs_flash.h>
 #if defined(CONFIG_TOIT_ENABLE_WIFI)
@@ -813,6 +814,19 @@ PRIMITIVE(ap_info) {
   ap_array->at_put(4, Smi::from(ap_record.primary));
 
   return ap_array;
+}
+
+// Prints the WiFi driver's statistics for the given WIFI_STATIS_* modules to
+// the console. The driver logs them at info level, so the default log level
+// is raised while it does.
+PRIMITIVE(statis_dump) {
+  ARGS(int, modules);
+  esp_log_level_t level = esp_log_level_get("*");
+  esp_log_level_set("*", ESP_LOG_INFO);
+  esp_err_t err = esp_wifi_statis_dump(modules);
+  esp_log_level_set("*", level);
+  if (err != ESP_OK) return Primitive::os_error(err, process);
+  return process->null_object();
 }
 #endif // CONFIG_TOIT_ENABLE_WIFI && !CONFIG_IDF_TARGET_ESP32P4
 } // namespace toit

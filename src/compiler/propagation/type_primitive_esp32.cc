@@ -50,6 +50,7 @@ TYPE_PRIMITIVE_NULL(pm_lock_del)
 TYPE_PRIMITIVE_NULL(pm_lock_acquire);
 TYPE_PRIMITIVE_NULL(pm_lock_release);
 TYPE_PRIMITIVE_NULL(pm_locks_dump);
+TYPE_PRIMITIVE_ARRAY(heap_caps_info);
 
 }  // namespace toit::compiler
 }  // namespace toit

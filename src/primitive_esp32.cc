@@ -42,6 +42,7 @@
 #include "freertos/queue.h"
 #include <driver/rtc_io.h>
 #include <esp_image_format.h>
+#include <esp_heap_caps.h>
 #include <esp_log.h>
 #include <esp_mac.h>
 #include <esp_sleep.h>
@@ -780,6 +781,22 @@ PRIMITIVE(pm_locks_dump) {
   if (err != ESP_OK) return Primitive::os_error(err, process);
 
   return process->null_object();
+}
+
+// Returns the free bytes, the lowest free bytes ever, the largest free block,
+// and the total size of the ESP-IDF heaps with all the given MALLOC_CAP_*
+// capabilities.
+PRIMITIVE(heap_caps_info) {
+  ARGS(uint32, caps);
+  Array* result = process->object_heap()->allocate_array(4, Smi::zero());
+  if (result == null) FAIL(ALLOCATION_FAILED);
+  multi_heap_info_t info;
+  heap_caps_get_info(&info, caps);
+  result->at_put(0, Smi::from(info.total_free_bytes));
+  result->at_put(1, Smi::from(info.minimum_free_bytes));
+  result->at_put(2, Smi::from(info.largest_free_block));
+  result->at_put(3, Smi::from(info.total_free_bytes + info.total_allocated_bytes));
+  return result;
 }
 
 } // namespace toit

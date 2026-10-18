@@ -33,6 +33,7 @@ TYPE_PRIMITIVE_ANY(start_scan)
 TYPE_PRIMITIVE_ANY(read_scan)
 TYPE_PRIMITIVE_NULL(set_hostname)
 TYPE_PRIMITIVE_ARRAY(ap_info)
+TYPE_PRIMITIVE_NULL(statis_dump)
 
 }  // namespace toit::compiler
 }  // namespace toit

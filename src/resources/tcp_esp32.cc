@@ -30,6 +30,12 @@
 
 #include "../event_sources/lwip_esp32.h"
 
+#include <lwip/etharp.h>
+#include <lwip/netif.h>
+#include <lwip/priv/tcp_priv.h>
+#include <lwip/stats.h>
+
+#include "lwip_debug.h"
 #include "tcp.h"
 #include "tcp_esp32.h"
 
@@ -214,13 +220,22 @@ int LwipSocket::new_backlog_socket(tcp_pcb* tpcb) {
   tcp_err(tpcb, on_error);
   tcp_recv(tpcb, on_read);
 
+  socket->in_backlog_ = true;
   backlog_.append(socket);
   return ERR_OK;
 }
 
 // May return null if there is nothing in the backlog.
 LwipSocket* LwipSocket::accept() {
-  return backlog_.remove_first();
+  LwipSocket* socket = backlog_.remove_first();
+  if (socket != null) socket->in_backlog_ = false;
+  return socket;
+}
+
+int LwipSocket::backlog_length() const {
+  int length = 0;
+  for (auto it = backlog_.begin(); it != backlog_.end(); ++it) length++;
+  return length;
 }
 
 MODULE_IMPLEMENTATION(tcp, MODULE_TCP)
@@ -639,6 +654,172 @@ PRIMITIVE(gc) {
   if (do_gc == process->true_object()) FAIL(CROSS_PROCESS_GC);
   return process->null_object();
 }
+
+#ifndef TOIT_EC618
+
+static int32 owner_of(LwipSocket* socket) {
+  return socket->resource_group()->process()->id();
+}
+
+static void add_tcp_pcb(SocketDebugWriter* writer, tcp_pcb* pcb, uint8 kind) {
+  SocketDebugRecord record = {};
+  record.protocol = SocketDebugRecord::PROTOCOL_TCP;
+  record.kind = kind;
+  record.state = pcb->state;
+  record.local_port = pcb->local_port;
+  record.remote_port = pcb->remote_port;
+  record.set_addresses(&pcb->local_ip, &pcb->remote_ip);
+  record.owner = -1;
+  record.send_queue = pcb->snd_queuelen;
+  record.retransmits = pcb->nrtx;
+  // The tear-down of a socket clears the argument, but not the error callback.
+  if (pcb->errf == static_cast<tcp_err_fn>(LwipSocket::on_error) && pcb->callback_arg != null) {
+    LwipSocket* socket = unvoid_cast<LwipSocket*>(pcb->callback_arg);
+    record.flags |= SocketDebugRecord::FLAG_OWNED;
+    if (socket->in_backlog()) record.flags |= SocketDebugRecord::FLAG_IN_BACKLOG;
+    record.owner = owner_of(socket);
+    pbuf* read_buffer = socket->read_buffer();
+    if (read_buffer != null) {
+      record.count_pbufs(read_buffer);
+      record.bytes = read_buffer->tot_len - socket->read_offset();
+    }
+  }
+  if (pcb->refused_data != null) {
+    record.count_pbufs(pcb->refused_data);
+    record.bytes += pcb->refused_data->tot_len;
+  }
+#if TCP_QUEUE_OOSEQ
+  for (tcp_seg* seg = pcb->ooseq; seg != null; seg = seg->next) {
+    record.ooseq_pbufs += pbuf_clen(seg->p);
+  }
+#endif
+  writer->add(record);
+}
+
+// Fills the given byte array with a record per TCP pcb, and returns how many
+// there are, which may be more than fit.
+PRIMITIVE(sockets_info) {
+  ARGS(MutableBlob, buffer);
+  uint8* address = buffer.address();
+  word length = buffer.length();
+  CAPTURE2(uint8*, address, word, length);
+  return LwipEventSource::instance()->call_on_thread([&]() -> Object* {
+    SocketDebugWriter writer(capture.address, capture.length);
+    for (tcp_pcb_listen* pcb = tcp_listen_pcbs.listen_pcbs; pcb != null; pcb = pcb->next) {
+      SocketDebugRecord record = {};
+      record.protocol = SocketDebugRecord::PROTOCOL_TCP;
+      record.kind = SocketDebugRecord::KIND_LISTEN;
+      record.state = pcb->state;
+      record.local_port = pcb->local_port;
+      record.set_addresses(&pcb->local_ip, IP4_ADDR_ANY);
+      record.owner = -1;
+      if (pcb->accept == static_cast<tcp_accept_fn>(LwipSocket::on_accept) && pcb->callback_arg != null) {
+        LwipSocket* socket = unvoid_cast<LwipSocket*>(pcb->callback_arg);
+        record.flags |= SocketDebugRecord::FLAG_OWNED;
+        record.owner = owner_of(socket);
+        record.queued = socket->backlog_length();
+      }
+      writer.add(record);
+    }
+    for (tcp_pcb* pcb = tcp_active_pcbs; pcb != null; pcb = pcb->next) {
+      add_tcp_pcb(&writer, pcb, SocketDebugRecord::KIND_ACTIVE);
+    }
+    for (tcp_pcb* pcb = tcp_tw_pcbs; pcb != null; pcb = pcb->next) {
+      add_tcp_pcb(&writer, pcb, SocketDebugRecord::KIND_TIME_WAIT);
+    }
+    return Smi::from(writer.count());
+  });
+}
+
+static const int ARP_RECORD_SIZE = 12;
+
+// Fills the given byte array with the stable entries of lwIP's ARP table, 12
+// bytes each: the IPv4 address, the MAC address, and the interface name.
+// Returns how many there are, which may be more than fit.
+PRIMITIVE(arp_table) {
+  ARGS(MutableBlob, buffer);
+  uint8* address = buffer.address();
+  word length = buffer.length();
+  CAPTURE2(uint8*, address, word, length);
+  return LwipEventSource::instance()->call_on_thread([&]() -> Object* {
+    word count = 0;
+#if LWIP_ARP
+    for (size_t i = 0; i < ARP_TABLE_SIZE; i++) {
+      ip4_addr_t* ip;
+      struct netif* netif;
+      struct eth_addr* mac;
+      if (!etharp_get_entry(i, &ip, &netif, &mac)) continue;
+      if ((count + 1) * ARP_RECORD_SIZE <= capture.length) {
+        uint8* record = capture.address + count * ARP_RECORD_SIZE;
+        uint32 ip_u32 = ip4_addr_get_u32(ip);
+        memcpy(record, &ip_u32, 4);
+        memcpy(record + 4, mac->addr, 6);
+        record[10] = netif->name[0];
+        record[11] = netif->name[1];
+      }
+      count++;
+    }
+#endif
+    return Smi::from(count);
+  });
+}
+
+static const int LWIP_STATS_PROTOCOLS = 6;
+static const int LWIP_STATS_COUNTERS = 12;
+
+#if LWIP_STATS
+static void put_proto_stats(uint32* counters, const struct stats_proto* stats) {
+  const STAT_COUNTER values[LWIP_STATS_COUNTERS] = {
+    stats->xmit, stats->recv, stats->fw, stats->drop, stats->chkerr, stats->lenerr,
+    stats->memerr, stats->rterr, stats->proterr, stats->opterr, stats->err, stats->cachehit,
+  };
+  for (int i = 0; i < LWIP_STATS_COUNTERS; i++) counters[i] = values[i];
+}
+#endif
+
+// Fills the given byte array with lwIP's protocol counters, 12 32-bit
+// counters (see struct stats_proto) for each of link, ARP, IP, ICMP, UDP and
+// TCP. A protocol without counters gets 0xffffffff for all of them. Returns
+// false if lwIP was built without statistics (CONFIG_LWIP_STATS).
+PRIMITIVE(lwip_stats) {
+  ARGS(MutableBlob, buffer);
+  const word size = LWIP_STATS_PROTOCOLS * LWIP_STATS_COUNTERS * sizeof(uint32);
+  if (buffer.length() < size) FAIL(OUT_OF_RANGE);
+#if LWIP_STATS
+  uint32 counters[LWIP_STATS_PROTOCOLS][LWIP_STATS_COUNTERS];
+  memset(counters, 0xff, sizeof(counters));
+#if LINK_STATS
+  put_proto_stats(counters[0], &lwip_stats.link);
+#endif
+#if ETHARP_STATS
+  put_proto_stats(counters[1], &lwip_stats.etharp);
+#endif
+#if IP_STATS
+  put_proto_stats(counters[2], &lwip_stats.ip);
+#endif
+#if ICMP_STATS
+  put_proto_stats(counters[3], &lwip_stats.icmp);
+#endif
+#if UDP_STATS
+  put_proto_stats(counters[4], &lwip_stats.udp);
+#endif
+#if TCP_STATS
+  put_proto_stats(counters[5], &lwip_stats.tcp);
+#endif
+  memcpy(buffer.address(), counters, size);
+  return process->true_object();
+#else
+  return process->false_object();
+#endif
+}
+
+#else  // TOIT_EC618
+
+PRIMITIVE(sockets_info) { FAIL(UNIMPLEMENTED); }
+PRIMITIVE(arp_table) { FAIL(UNIMPLEMENTED); }
+PRIMITIVE(lwip_stats) { FAIL(UNIMPLEMENTED); }
+
+#endif  // TOIT_EC618
 
 } // namespace toit
 

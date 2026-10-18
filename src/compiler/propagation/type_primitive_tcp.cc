@@ -33,6 +33,9 @@ TYPE_PRIMITIVE_ANY(error)
 TYPE_PRIMITIVE_ANY(get_option)
 TYPE_PRIMITIVE_ANY(set_option)
 TYPE_PRIMITIVE_ANY(gc)
+TYPE_PRIMITIVE_SMI(sockets_info)
+TYPE_PRIMITIVE_SMI(arp_table)
+TYPE_PRIMITIVE_BOOL(lwip_stats)
 
 }  // namespace toit::compiler
 }  // namespace toit
