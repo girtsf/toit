@@ -190,31 +190,6 @@ lwip-stats -> Map?:
     if counters["xmit"] != 0xffff_ffff: result[LWIP-STATS-PROTOCOLS_[protocol]] = counters
   return result
 
-/** The buffer status of the WiFi driver, for $wifi-statistics-dump. */
-WIFI-STATISTICS-BUFFER ::= 1 << 0
-/** The receive and transmit status of the WiFi driver, for $wifi-statistics-dump. */
-WIFI-STATISTICS-RXTX ::= 1 << 1
-/** The hardware status of the WiFi driver, for $wifi-statistics-dump. */
-WIFI-STATISTICS-HW ::= 1 << 2
-/** The diagnostic status of the WiFi driver, for $wifi-statistics-dump. */
-WIFI-STATISTICS-DIAG ::= 1 << 3
-/** The power save status of the WiFi driver, for $wifi-statistics-dump. */
-WIFI-STATISTICS-PS ::= 1 << 4
-/** All status of the WiFi driver, for $wifi-statistics-dump. */
-WIFI-STATISTICS-ALL ::= -1
-
-/**
-Prints the WiFi driver's statistics for the given $modules, a combination of
-  the `WIFI-STATISTICS-*` constants, to the serial console.
-
-What it prints is up to the closed-source driver (`esp_wifi_statis_dump`).
-  It goes to the console only: not to stdout, and not to the print service.
-
-Throws if WiFi is not started.
-*/
-wifi-statistics-dump modules/int=WIFI-STATISTICS-BUFFER -> none:
-  wifi-statis-dump_ modules
-
 /** Calls $block with a buffer until it fits the records it says there are, and returns them split. */
 records_ size/int [block] -> List:
   capacity := 32
@@ -236,6 +211,3 @@ arp-table_ buffer/ByteArray -> int:
 
 lwip-stats_ buffer/ByteArray -> bool:
   #primitive.tcp.lwip-stats
-
-wifi-statis-dump_ modules/int -> none:
-  #primitive.wifi.statis-dump

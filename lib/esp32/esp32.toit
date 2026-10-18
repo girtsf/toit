@@ -414,17 +414,15 @@ MALLOC-CAP-DMA ::= 1 << 3
 class HeapInfo:
   /** The free bytes. */
   free/int
-  /** The lowest $free has been since boot. */
-  minimum-free/int
   /** The largest free block, and so the largest possible allocation. */
   largest-free-block/int
   /** The size of the heaps, free and allocated. */
   total/int
 
-  constructor --.free --.minimum-free --.largest-free-block --.total:
+  constructor --.free --.largest-free-block --.total:
 
   stringify -> string:
-    return "free $free, minimum free $minimum-free, largest free block $largest-free-block, total $total"
+    return "free $free, largest free block $largest-free-block, total $total"
 
 /**
 Returns the state of the ESP-IDF heaps with all of the given $caps, a
@@ -435,7 +433,7 @@ The heaps hold all memory of the system, not only Toit's, and $MALLOC-CAP-INTERN
 */
 heap-info caps/int -> HeapInfo:
   info := heap-caps-info_ caps
-  return HeapInfo --free=info[0] --minimum-free=info[1] --largest-free-block=info[2] --total=info[3]
+  return HeapInfo --free=info[0] --largest-free-block=info[1] --total=info[2]
 
 heap-caps-info_ caps/int -> Array_:
   #primitive.esp32.heap-caps-info

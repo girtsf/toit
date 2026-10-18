@@ -357,7 +357,6 @@ namespace toit {
   PRIMITIVE(read_scan, 1)                    \
   PRIMITIVE(set_hostname, 2)                 \
   PRIMITIVE(ap_info, 1)                      \
-  PRIMITIVE(statis_dump, 1)                  \
 
 #define MODULE_ETHERNET(PRIMITIVE)           \
   PRIMITIVE(init, 6)                         \
