@@ -497,6 +497,10 @@ PRIMITIVE(gc) {
   UNREACHABLE();
 }
 
+PRIMITIVE(sockets_info) {
+  FAIL(UNIMPLEMENTED);
+}
+
 } // namespace toit
 
 #endif // TOIT_LINUX && !TOIT_USE_LWIP

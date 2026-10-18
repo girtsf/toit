@@ -32,6 +32,7 @@ TYPE_PRIMITIVE_ANY(set_option)
 TYPE_PRIMITIVE_ANY(error_number)
 TYPE_PRIMITIVE_ANY(close)
 TYPE_PRIMITIVE_ANY(gc)
+TYPE_PRIMITIVE_SMI(sockets_info)
 
 }  // namespace toit::compiler
 }  // namespace toit

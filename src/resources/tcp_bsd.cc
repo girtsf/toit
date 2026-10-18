@@ -458,6 +458,18 @@ PRIMITIVE(gc) {
   UNREACHABLE();
 }
 
+PRIMITIVE(sockets_info) {
+  FAIL(UNIMPLEMENTED);
+}
+
+PRIMITIVE(arp_table) {
+  FAIL(UNIMPLEMENTED);
+}
+
+PRIMITIVE(lwip_stats) {
+  FAIL(UNIMPLEMENTED);
+}
+
 } // namespace toit
 
 #endif // TOIT_BSD
