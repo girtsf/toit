@@ -628,6 +628,10 @@ PRIMITIVE(gc) {
   UNREACHABLE();
 }
 
+PRIMITIVE(sockets_info) {
+  FAIL(UNIMPLEMENTED);
+}
+
 } // namespace toit
 
 #endif // TOIT_WINDOWS
