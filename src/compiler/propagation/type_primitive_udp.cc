@@ -59,5 +59,7 @@ TYPE_PRIMITIVE(gc) {
   failure.add_string(program);
 }
 
+TYPE_PRIMITIVE_SMI(sockets_info)
+
 }  // namespace toit::compiler
 }  // namespace toit
