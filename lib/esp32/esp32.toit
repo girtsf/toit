@@ -408,3 +408,40 @@ pm-lock-acquire_ resource/ByteArray:
 
 pm-lock-release_ resource/ByteArray:
   #primitive.esp32.pm-lock-release
+
+/** Memory with internal RAM, which is not lost when the flash cache is off. */
+MALLOC-CAP-INTERNAL ::= 1 << 11
+/** Memory in PSRAM (SPI RAM). */
+MALLOC-CAP-SPIRAM ::= 1 << 10
+/** Memory that allows 8/16/32-bit accesses. */
+MALLOC-CAP-8BIT ::= 1 << 2
+/** Memory that DMA can access. */
+MALLOC-CAP-DMA ::= 1 << 3
+
+/** The state of the ESP-IDF heaps with given capabilities; see $heap-info. */
+class HeapInfo:
+  /** The free bytes. */
+  free/int
+  /** The largest free block, and so the largest possible allocation. */
+  largest-free-block/int
+  /** The size of the heaps, free and allocated. */
+  total/int
+
+  constructor --.free --.largest-free-block --.total:
+
+  stringify -> string:
+    return "free $free, largest free block $largest-free-block, total $total"
+
+/**
+Returns the state of the ESP-IDF heaps with all of the given $caps, a
+  combination of the `MALLOC-CAP-*` constants, such as $MALLOC-CAP-INTERNAL.
+
+The heaps hold all memory of the system, not only Toit's, and $MALLOC-CAP-INTERNAL
+  is where the WiFi driver and lwIP allocate, unless configured to use PSRAM.
+*/
+heap-info caps/int -> HeapInfo:
+  info := heap-caps-info_ caps
+  return HeapInfo --free=info[0] --largest-free-block=info[1] --total=info[2]
+
+heap-caps-info_ caps/int -> Array_:
+  #primitive.esp32.heap-caps-info
