@@ -297,7 +297,7 @@ namespace toit {
   PRIMITIVE(init, 0)                         \
   PRIMITIVE(close, 2)                        \
   PRIMITIVE(close_write, 2)                  \
-  PRIMITIVE(connect, 4)                      \
+  PRIMITIVE(connect, 5)                      \
   PRIMITIVE(accept, 2)                       \
   PRIMITIVE(listen, 4)                       \
   PRIMITIVE(write, 5)                        \
@@ -328,7 +328,7 @@ namespace toit {
   PRIMITIVE(init, 0)                         \
   PRIMITIVE(create_socket, 1)                \
   PRIMITIVE(bind, 3)                         \
-  PRIMITIVE(bind_socket, 4)                  \
+  PRIMITIVE(bind_socket, 5)                  \
   PRIMITIVE(connect, 4)                      \
   PRIMITIVE(receive, 3)                      \
   PRIMITIVE(send, 7)                         \

@@ -148,12 +148,12 @@ class TcpSocket extends TcpSocket_ with io.CloseableInMixin io.CloseableOutMixin
   no-delay= value/bool -> none: set-option_ TOIT-TCP-OPTION-NO-DELAY_ value
 
   // TODO(kasper): Make window size a named parameter to [connect]?
-  connect hostname port:
-    return connect hostname port: throw it
+  connect hostname port --interface-address/ByteArray=#[]:
+    return connect hostname port --interface-address=interface-address: throw it
 
-  connect hostname port [failure]:
+  connect hostname port --interface-address/ByteArray=#[] [failure]:
     address := dns-lookup hostname --network=network_
-    open_ (tcp-connect_ tcp-resource-group_ address.raw port window-size_)
+    open_ (tcp-connect_ tcp-resource-group_ address.raw port window-size_ interface-address)
     error := catch:
       ensure-state_ TOIT-TCP-WRITE_ --error-bits=(TOIT-TCP-ERROR_ | TOIT-TCP-CLOSE_) --failure=failure
     if error:
@@ -212,7 +212,7 @@ tcp-close_ socket-resource-group descriptor:
 tcp-close-write_ socket-resource-group descriptor:
   #primitive.tcp.close-write
 
-tcp-connect_ socket-resource-group address port window-size:
+tcp-connect_ socket-resource-group address port window-size interface-address:
   #primitive.tcp.connect
 
 tcp-accept_ socket-resource-group descriptor:

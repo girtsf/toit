@@ -177,8 +177,9 @@ PRIMITIVE(close_write) {
 }
 
 PRIMITIVE(connect) {
-  ARGS(TcpResourceGroup, resource_group, Blob, address, int, port, int, window_size);
+  ARGS(TcpResourceGroup, resource_group, Blob, address, int, port, int, window_size, Blob, interface_address);
   if (address.length() != 4) FAIL(OUT_OF_BOUNDS);
+  if (interface_address.length() != 0) FAIL(UNIMPLEMENTED);
 
   ByteArray* resource_proxy = process->object_heap()->allocate_proxy();
   if (resource_proxy == null) FAIL(ALLOCATION_FAILED);

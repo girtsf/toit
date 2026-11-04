@@ -119,6 +119,18 @@ Object* lwip_error(Process* process, err_t err) {
   return Primitive::mark_as_error(str);
 }
 
+#ifndef TOIT_EC618
+struct netif* netif_for_address(const ip_addr_t* address) {
+  const ip4_addr_t* ip4 = ip_2_ip4(address);
+  if (ip4_addr_isany(ip4)) return null;
+  struct netif* netif;
+  NETIF_FOREACH(netif) {
+    if (netif_is_up(netif) && ip4_addr_cmp(ip4, netif_ip4_addr(netif))) return netif;
+  }
+  return null;
+}
+#endif
+
 LwipEventSource* LwipEventSource::instance_ = null;
 
 MODULE_IMPLEMENTATION(dhcp, MODULE_DHCP)

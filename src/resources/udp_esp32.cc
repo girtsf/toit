@@ -327,7 +327,7 @@ PRIMITIVE(create_socket) {
 }
 
 PRIMITIVE(bind_socket) {
-  ARGS(UdpResourceGroup, resource_group, UdpSocket, socket, Blob, address, int, port);
+  ARGS(UdpResourceGroup, resource_group, UdpSocket, socket, Blob, address, int, port, Blob, interface_address);
 
   ip_addr_t addr;
   if (address.length() == 4) {
@@ -337,11 +337,45 @@ PRIMITIVE(bind_socket) {
     FAIL(OUT_OF_BOUNDS);
   }
 
-  CAPTURE4(UdpSocket*, socket, ip_addr_t &, addr, int, port, Process*, process);
+  // An empty interface address means the socket isn't bound to an interface.
+  ip_addr_t interface_addr;
+  const ip_addr_t* interface_addr_or_null = null;
+  if (interface_address.length() == 4) {
+    const uint8_t* a = interface_address.address();
+    IP_ADDR4(&interface_addr, a[0], a[1], a[2], a[3]);
+    interface_addr_or_null = &interface_addr;
+  } else if (interface_address.length() != 0) {
+    FAIL(OUT_OF_BOUNDS);
+  }
+#ifdef TOIT_EC618
+  // EC618's lwIP can't bind a pcb to a netif.
+  if (interface_addr_or_null != null) FAIL(UNIMPLEMENTED);
+#endif
+
+  CAPTURE5(
+      UdpSocket*, socket,
+      ip_addr_t &, addr,
+      int, port,
+      const ip_addr_t*, interface_addr_or_null,
+      Process*, process);
 
   return resource_group->event_source()->call_on_thread([&]() -> Object* {
+#ifndef TOIT_EC618
+    struct netif* netif = null;
+    if (capture.interface_addr_or_null != null) {
+      netif = netif_for_address(capture.interface_addr_or_null);
+      if (netif == null) return lwip_error(capture.process, ERR_RTE);
+    }
+#endif
+
+    // Stay bound to ANY when binding to a netif: a pcb bound to the netif's IP
+    // stops receiving broadcasts.
     err_t err = udp_bind(capture.socket->upcb(), &capture.addr, capture.port);
     if (err != ERR_OK) return lwip_error(capture.process, err);
+
+#ifndef TOIT_EC618
+    if (netif != null) udp_bind_netif(capture.socket->upcb(), netif);
+#endif
 
     return capture.process->null_object();
   });

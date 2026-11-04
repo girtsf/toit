@@ -188,7 +188,8 @@ class WifiServiceProvider extends NetworkServiceProviderBase implements udp.Inte
   // This method comes from the udp.Interface definition. It is necessary
   // to allow the DNS client to use the WiFi when sending out requests.
   udp-open --port/int?=null -> udp.Socket:
-    return udp-module.Socket this "0.0.0.0" (port ? port : 0)
+    interface-address := (state_.module as WifiModule).address.to-byte-array
+    return udp-module.Socket this "0.0.0.0" (port ? port : 0) --interface-address=interface-address
 
 class WifiModule implements NetworkModule:
   static WIFI-CONNECTED    ::= 1 << 0
