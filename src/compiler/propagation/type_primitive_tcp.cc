@@ -59,5 +59,9 @@ TYPE_PRIMITIVE(gc) {
   failure.add_string(program);
 }
 
+TYPE_PRIMITIVE_SMI(sockets_info)
+TYPE_PRIMITIVE_SMI(arp_table)
+TYPE_PRIMITIVE_BOOL(lwip_stats)
+
 }  // namespace toit::compiler
 }  // namespace toit

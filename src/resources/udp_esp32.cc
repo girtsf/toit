@@ -35,6 +35,7 @@
 
 #include "../event_sources/lwip_esp32.h"
 
+#include "lwip_debug.h"
 #include "udp.h"
 
 namespace toit {
@@ -129,6 +130,21 @@ class UdpSocket : public Resource {
 #endif
   void on_recv(pbuf* p, const ip_addr_t* addr, u16_t port);
 
+  // Receives while the queue is full: drops the datagram. Unlike no callback,
+  // which drops too, it keeps the pcb's argument, for $sockets_info.
+#ifdef TOIT_EC618
+  static int on_recv_drop(void* arg, udp_pcb* upcb, pbuf* p, const ip_addr_t* addr, u16_t port) {
+    unvoid_cast<UdpSocket*>(arg)->dropped_++;
+    pbuf_free(p);
+    return 0;
+  }
+#else
+  static void on_recv_drop(void* arg, udp_pcb* upcb, pbuf* p, const ip_addr_t* addr, u16_t port) {
+    unvoid_cast<UdpSocket*>(arg)->dropped_++;
+    pbuf_free(p);
+  }
+#endif
+
   void send_state();
   void block_send();
   void unblock_send();
@@ -159,6 +175,16 @@ class UdpSocket : public Resource {
     return packets_.first();
   }
 
+  void fill_debug_record(SocketDebugRecord* record) const {
+    for (auto it = packets_.begin(); it != packets_.end(); ++it) {
+      const pbuf* p = it->pbuf();
+      record->queued++;
+      record->count_pbufs(p);
+      record->bytes += p->tot_len;
+    }
+    record->dropped = dropped_;
+  }
+
  private:
   static void on_send_unblock(void* arg) {
     unvoid_cast<UdpSocket*>(arg)->unblock_send();
@@ -172,6 +198,7 @@ class UdpSocket : public Resource {
   Packet* spare_packet_;
   bool send_blocked_;
   int buffered_bytes_;
+  uint32 dropped_ = 0;
 };
 
 class UdpResourceGroup : public ResourceGroup {
@@ -222,9 +249,8 @@ void UdpSocket::set_recv() {
     udp_recv(upcb(), UdpSocket::on_recv, this);
   } else {
     // When too many packets have been received and not picked up by the Toit
-    // program, we set the udp_recv to null so that packets are dropped for a
-    // while.
-    udp_recv(upcb(), null, null);
+    // program, we drop packets for a while.
+    udp_recv(upcb(), UdpSocket::on_recv_drop, this);
   }
 }
 
@@ -726,6 +752,35 @@ PRIMITIVE(gc) {
   });
   if (do_gc == process->true_object()) FAIL(CROSS_PROCESS_GC);
   return process->null_object();
+}
+
+// Fills the given byte array with a record per UDP pcb, and returns how many
+// there are, which may be more than fit.
+PRIMITIVE(sockets_info) {
+  ARGS(MutableBlob, buffer);
+  uint8* address = buffer.address();
+  word length = buffer.length();
+  CAPTURE2(uint8*, address, word, length);
+  return LwipEventSource::instance()->call_on_thread([&]() -> Object* {
+    SocketDebugWriter writer(capture.address, capture.length);
+    for (udp_pcb* pcb = udp_pcbs; pcb != null; pcb = pcb->next) {
+      SocketDebugRecord record = {};
+      record.protocol = SocketDebugRecord::PROTOCOL_UDP;
+      record.local_port = pcb->local_port;
+      record.remote_port = pcb->remote_port;
+      record.set_addresses(&pcb->local_ip, &pcb->remote_ip);
+      record.owner = -1;
+      if ((pcb->recv == static_cast<udp_recv_fn>(UdpSocket::on_recv) || pcb->recv == UdpSocket::on_recv_drop) &&
+          pcb->recv_arg != null) {
+        UdpSocket* socket = unvoid_cast<UdpSocket*>(pcb->recv_arg);
+        record.flags |= SocketDebugRecord::FLAG_OWNED;
+        record.owner = socket->resource_group()->process()->id();
+        socket->fill_debug_record(&record);
+      }
+      writer.add(record);
+    }
+    return Smi::from(writer.count());
+  });
 }
 
 } // namespace toit

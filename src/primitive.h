@@ -306,6 +306,9 @@ namespace toit {
   PRIMITIVE(get_option, 3)                   \
   PRIMITIVE(set_option, 4)                   \
   PRIMITIVE(gc, 1)                           \
+  PRIMITIVE(sockets_info, 1)                 \
+  PRIMITIVE(arp_table, 1)                    \
+  PRIMITIVE(lwip_stats, 1)                   \
 
 #define MODULE_UNIX_SOCKET(PRIMITIVE)        \
   PRIMITIVE(init, 0)                         \
@@ -333,6 +336,7 @@ namespace toit {
   PRIMITIVE(error_number, 1)                 \
   PRIMITIVE(close, 2)                        \
   PRIMITIVE(gc, 1)                           \
+  PRIMITIVE(sockets_info, 1)                 \
 
 #define MODULE_TLS(PRIMITIVE)                \
   PRIMITIVE(init, 1)                         \
@@ -460,6 +464,7 @@ namespace toit {
   PRIMITIVE(pm_lock_acquire, 1)              \
   PRIMITIVE(pm_lock_release, 1)              \
   PRIMITIVE(pm_locks_dump, 0)                \
+  PRIMITIVE(heap_caps_info, 1)               \
 
 #define MODULE_EC618(PRIMITIVE)              \
   PRIMITIVE(console_uart_id, 0)              \
