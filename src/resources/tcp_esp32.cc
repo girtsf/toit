@@ -304,7 +304,7 @@ PRIMITIVE(listen) {
 }
 
 PRIMITIVE(connect) {
-  ARGS(SocketResourceGroup, resource_group, Blob, address, int, port, int, window_size);
+  ARGS(SocketResourceGroup, resource_group, Blob, address, int, port, int, window_size, Blob, interface_address);
 
   // Validate the IP address before we start allocating any
   // memory to trivially avoid leaks.
@@ -316,21 +316,48 @@ PRIMITIVE(connect) {
     FAIL(OUT_OF_BOUNDS);
   }
 
+  // An empty interface address means the socket isn't bound to an interface.
+  ip_addr_t interface_addr;
+  const ip_addr_t* interface_addr_or_null = null;
+  if (interface_address.length() == 4) {
+    const uint8* a = interface_address.address();
+    IP_ADDR4(&interface_addr, a[0], a[1], a[2], a[3]);
+    interface_addr_or_null = &interface_addr;
+  } else if (interface_address.length() != 0) {
+    FAIL(OUT_OF_BOUNDS);
+  }
+#ifdef TOIT_EC618
+  // EC618's lwIP can't bind a pcb to a netif.
+  if (interface_addr_or_null != null) FAIL(UNIMPLEMENTED);
+#endif
+
   ByteArray* resource_proxy = process->object_heap()->allocate_proxy();
   if (resource_proxy == null) FAIL(ALLOCATION_FAILED);
 
   LwipSocket* socket = _new LwipSocket(resource_group, LwipSocket::kConnection);
   if (socket == null) FAIL(MALLOC_FAILED);
 
-  CAPTURE5(
+  CAPTURE6(
       SocketResourceGroup*, resource_group,
       int, port,
       LwipSocket*, socket,
       ip_addr_t&, addr,
+      const ip_addr_t*, interface_addr_or_null,
       Process*, process);
 
   return resource_group->event_source()->call_on_thread([&]() -> Object* {
     Process* process = capture.process;
+
+#ifndef TOIT_EC618
+    struct netif* netif = null;
+    if (capture.interface_addr_or_null != null) {
+      netif = netif_for_address(capture.interface_addr_or_null);
+      if (netif == null) {
+        delete capture.socket;
+        return lwip_error(process, ERR_RTE);
+      }
+    }
+#endif
 
     tcp_pcb* tpcb = tcp_new();
     if (tpcb == null) {
@@ -341,6 +368,10 @@ PRIMITIVE(connect) {
     capture.socket->set_tpcb(tpcb);
     tcp_arg(tpcb, capture.socket);
     tcp_err(tpcb, LwipSocket::on_error);
+
+#ifndef TOIT_EC618
+    if (netif != null) tcp_bind_netif(tpcb, netif);
+#endif
 
     err_t err = tcp_connect(tpcb, &capture.addr, capture.port, LwipSocket::on_connected);
     if (err != ERR_OK) {

@@ -13,13 +13,18 @@ main:
     [0, 3, 5, 16, 64].do: | length |
       address := ByteArray length
       expect-throw "OUT_OF_BOUNDS": udp-bind udp-group address 0
-      expect-throw "OUT_OF_BOUNDS": udp-bind-socket udp-group socket address 0
+      expect-throw "OUT_OF_BOUNDS": udp-bind-socket udp-group socket address 0 #[]
       expect-throw "OUT_OF_BOUNDS": udp-connect udp-group socket address 1234
       expect-throw "OUT_OF_BOUNDS": udp-send udp-group socket #[1] 0 1 address 1234
-      expect-throw "OUT_OF_BOUNDS": tcp-connect tcp-group address 1234 0
+      expect-throw "OUT_OF_BOUNDS": tcp-connect tcp-group address 1234 0 #[]
+
+    // Host sockets can't be bound to an interface.
+    localhost := #[127, 0, 0, 1]
+    expect-throw "UNIMPLEMENTED": udp-bind-socket udp-group socket localhost 0 localhost
+    expect-throw "UNIMPLEMENTED": tcp-connect tcp-group localhost 1234 0 localhost
 
     // Rejected addresses must leave the socket usable.
-    udp-bind-socket udp-group socket #[127, 0, 0, 1] 0
+    udp-bind-socket udp-group socket localhost 0 #[]
   finally:
     udp-close udp-group socket
 
@@ -32,7 +37,7 @@ udp-create-socket group:
 udp-bind group address port:
   #primitive.udp.bind
 
-udp-bind-socket group socket address port:
+udp-bind-socket group socket address port interface-address:
   #primitive.udp.bind_socket
 
 udp-connect group socket address port:
@@ -47,5 +52,5 @@ udp-close group socket:
 tcp-init:
   #primitive.tcp.init
 
-tcp-connect group address port window-size:
+tcp-connect group address port window-size interface-address:
   #primitive.tcp.connect

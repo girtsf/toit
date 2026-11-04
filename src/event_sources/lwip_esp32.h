@@ -38,6 +38,12 @@ extern bool needs_gc;
 // Returns the error as a string. Returns null on allocation failure.
 Object* lwip_error(Process* process, err_t err);
 
+#ifndef TOIT_EC618
+// Returns the up netif with the given IPv4 address, or null if there is none.
+// Must be called on the LWIP thread.
+struct netif* netif_for_address(const ip_addr_t* address);
+#endif
+
 // The LwipEventSource handles the LwIP thread, which is system-wide.  All LwIP
 // code must run on this thread, and it blocks when nothing is happening in
 // LwIP.

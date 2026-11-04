@@ -141,8 +141,9 @@ PRIMITIVE(create_socket) {
 }
 
 PRIMITIVE(bind_socket) {
-  ARGS(ByteArray, proxy, IntResource, connection_resource, Blob, address, int, port);
+  ARGS(ByteArray, proxy, IntResource, connection_resource, Blob, address, int, port, Blob, interface_address);
   if (address.length() != 4) FAIL(OUT_OF_BOUNDS);
+  if (interface_address.length() != 0) FAIL(UNIMPLEMENTED);
   USE(proxy);
   int fd = connection_resource->id();
 
