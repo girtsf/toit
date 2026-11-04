@@ -43,10 +43,14 @@ class Socket implements udp.Socket udp.MulticastSocket:
     particular one.
 
   The port can be zero, in which case the system picks a free port.
+
+  If the $interface-address is not empty, then the socket only sends and
+    receives through the interface that has that address, and this constructor
+    throws if there is no such interface.
   */
-  constructor .network_ hostname/string port/int:
+  constructor .network_ hostname/string port/int --interface-address/ByteArray=#[]:
     group := udp-resource-group_
-    id := udp-bind_ group (dns-lookup hostname --network=network_).raw port
+    id := udp-bind_ group (dns-lookup hostname --network=network_).raw port interface-address
     state_ = ResourceState_ group id
     add-finalizer this::
       this.close
@@ -96,7 +100,7 @@ class Socket implements udp.Socket udp.MulticastSocket:
         udp-set-option_ group id TOIT-UDP-OPTION-MULTICAST-IF if-addr.raw
 
       bind-port := port ? port : 0
-      udp-bind-socket_ group id #[0,0,0,0] bind-port
+      udp-bind-socket_ group id #[0,0,0,0] bind-port #[]
 
       successful = true
     finally:
@@ -137,7 +141,7 @@ class Socket implements udp.Socket udp.MulticastSocket:
       if if-addr:
         udp-set-option_ group id TOIT-UDP-OPTION-MULTICAST-IF if-addr.raw
 
-      udp-bind-socket_ group id #[0,0,0,0] port
+      udp-bind-socket_ group id #[0,0,0,0] port #[]
 
       // Join group.
       udp-set-option_ group id TOIT-UDP-OPTION-MULTICAST-MEMBERSHIP address.raw
@@ -301,17 +305,17 @@ udp-init_:
 udp-create-socket_ udp-resource-group:
   #primitive.udp.create_socket
 
-udp-bind_ udp-resource-group address port:
+udp-bind_ udp-resource-group address port interface-address:
   id := udp-create-socket_ udp-resource-group
   successful := false
   try:
-    udp-bind-socket_ udp-resource-group id address port
+    udp-bind-socket_ udp-resource-group id address port interface-address
     successful = true
     return id
   finally:
     if not successful: udp-close_ udp-resource-group id
 
-udp-bind-socket_ udp-resource-group id address port:
+udp-bind-socket_ udp-resource-group id address port interface-address:
   #primitive.udp.bind_socket
 
 udp-connect_ udp-resource-group id address port:

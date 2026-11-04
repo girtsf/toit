@@ -55,11 +55,26 @@ class Client extends NetworkResourceProxy implements Interface udp.MulticastInte
   // client about the bits on connect.
   proxy-mask/int
 
-  constructor service/NetworkServiceClientBase --name/string? connection/List:
+  bind-to-interface_/bool := false
+
+  /**
+  Constructs a client for the given $connection.
+
+  If $bind-to-interface is true, then TCP connections and unicast UDP sockets
+    opened through this client use the client's interface or fail. They don't
+    follow the default route. The service must proxy $address, and this
+    constructor closes the connection and throws if it doesn't.
+  */
+  constructor service/NetworkServiceClientBase --name/string? connection/List --bind-to-interface/bool=false:
     handle := connection[0]
     proxy-mask = connection[1]
     this.name = name or connection[2]
     super service handle
+    if bind-to-interface:
+      if (proxy-mask & NetworkService.PROXY-ADDRESS) == 0:
+        close
+        throw "Network service doesn't report its interface address"
+      bind-to-interface_ = true
 
   constructor service/NetworkServiceClientBase
       --handle/int
@@ -95,7 +110,7 @@ class Client extends NetworkResourceProxy implements Interface udp.MulticastInte
   udp-open --port/int?=null -> udp.Socket:
     if is-closed: throw "Network closed"
     if (proxy-mask & NetworkService.PROXY-UDP) != 0: return super --port=port
-    return udp-module.Socket this "0.0.0.0" (port ? port : 0)
+    return udp-module.Socket this "0.0.0.0" (port ? port : 0) --interface-address=interface-address_
 
   udp-open-multicast -> udp.MulticastSocket
       --port/int?=null
@@ -160,7 +175,7 @@ class Client extends NetworkResourceProxy implements Interface udp.MulticastInte
     if is-closed: throw "Network closed"
     if (proxy-mask & NetworkService.PROXY-TCP) != 0: return super address
     result := tcp-module.TcpSocket this
-    result.connect address.ip.stringify address.port
+    result.connect address.ip.stringify address.port --interface-address=interface-address_
     return result
 
   tcp-listen port/int -> tcp.ServerSocket:
@@ -169,6 +184,10 @@ class Client extends NetworkResourceProxy implements Interface udp.MulticastInte
     result := tcp-module.TcpServerSocket this
     result.listen "0.0.0.0" port
     return result
+
+  // Read per socket, so that new sockets pick up an address change.
+  interface-address_ -> ByteArray:
+    return bind-to-interface_ ? address.to-byte-array : #[]
 
   on-notified_ notification/any -> none:
     if notification == NetworkService.NOTIFY-CLOSED: close-handle_

@@ -32,6 +32,12 @@ main:
 service_/EthernetServiceClient? := null
 service-initialized_/bool := false
 
+/**
+Opens the ethernet network.
+
+TCP connections and unicast UDP sockets opened through the returned client use
+  ethernet or fail, even if the default route is a different interface.
+*/
 open --name/string?=null -> net.Client:
   if not service-initialized_:
     // We typically run the ethernet service in a non-system
@@ -51,7 +57,7 @@ open --name/string?=null -> net.Client:
     service-initialized_ = true
   service := service_
   if not service: throw "ethernet unavailable"
-  return net.Client service --name=name service.connect
+  return net.Client service --name=name service.connect --bind-to-interface
 
 /**
 Resets the ethernet client.

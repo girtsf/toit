@@ -62,9 +62,15 @@ class AccessPoint:
   bssid-name -> string:
     return (List bssid.size: "$(%02x bssid[it])").join ":"
 
+/**
+A client for a WiFi network.
+
+TCP connections and unicast UDP sockets opened through this client use WiFi or
+  fail, even if the default route is a different interface.
+*/
 class Client extends net.Client:
   constructor client/WifiServiceClient --name/string? connection/List:
-    super client --name=name connection
+    super client --name=name connection --bind-to-interface
 
   /**
   Returns information about the access point this $Client is currently
