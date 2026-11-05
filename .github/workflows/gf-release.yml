@@ -63,6 +63,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           make prefix=build/out/toit install
+          tools/install-esptool.sh build/out/toit
           tar -czf build/toit-linux-x64.tar.gz -C build/out toit
           {
             echo "Upstream master: $(git merge-base HEAD upstream/master)"
