@@ -22,7 +22,7 @@ on:
 
 env:
   # Envelope variants built by the girtsf/toit-envelopes fork.
-  GF_VARIANTS: esp32-no-ble esp32s3 esp32s3-spiram-octo-16mb
+  GF_VARIANTS: esp32-no-ble esp32s2 esp32s3 esp32s3-spiram-octo-16mb
 
 permissions:
   contents: write
